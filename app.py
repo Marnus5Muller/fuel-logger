@@ -6,6 +6,9 @@ import pandas as pd
 from werkzeug.utils import secure_filename
 from datetime import datetime
 from zoneinfo import ZoneInfo
+import os
+from openpyxl.utils.dataframe import dataframe_to_rows
+
 
 app = Flask(__name__)
 app.secret_key = '9f3e8c2b5d7a4f9cbb8e1d0a3f7c6e4520d93f4a1b6c7e8d9f1a2b3c4d5e6f7a'
@@ -194,9 +197,6 @@ HTML_FORM = '''
 
         <div class="result">End Reading: <span id="calculated_end">0.00</span></div>
 
-        <label for="photo">Upload Photo:</label>
-        <input id="photo" name="photo" type="file" accept="image/*">
-
         <button type="submit">Log Fuel</button>
     </form>
     <div class="logout"><a href="/logout">Logout</a></div>
@@ -296,13 +296,15 @@ LOGIN_FORM = '''
 </html>
 '''
 
-def write_to_csv(timestamp, site, vehicle, driver_name, odometer, start, end, pumped, photo_path):
+def write_to_csv(timestamp, site, vehicle, driver_name, odometer, start, end, pumped):
     file_exists = os.path.exists(CSV_FILE)
     with open(CSV_FILE, 'a', newline='', encoding='utf-8') as csvfile:
         writer = csv.writer(csvfile)
         if not file_exists:
-            writer.writerow(['Timestamp', 'Site', 'Vehicle', 'Driver Name', 'Odometer', 'Start Reading', 'End Reading', 'Pumped', 'Photo'])
-        writer.writerow([timestamp, site, vehicle, driver_name, odometer, start, end, pumped, photo_path])
+            writer.writerow(['Timestamp', 'Site', 'Vehicle', 'Driver Name', 'Odometer', 'Start Reading', 'End Reading', 'Pumped'])
+        writer.writerow([timestamp, site, vehicle, driver_name, odometer, start, end, pumped])
+
+
 
 
 def get_last_readings():
@@ -354,14 +356,6 @@ def log_fuel():
         # Vehicle logic
         vehicle = request.form.get('vehicle_text') if site == "Plank" else request.form.get('vehicle_select')
 
-        # ✅ Handle image upload
-        photo = request.files.get('photo')
-        photo_filename = ''
-        if photo and photo.filename != '':
-            photo_filename = secure_filename(photo.filename)
-            photo_path = os.path.join(app.config['UPLOAD_FOLDER'], photo_filename)
-            photo.save(photo_path)
-
         # ✅ Validate previous reading
         previous = get_last_readings()
         if previous:
@@ -378,7 +372,8 @@ def log_fuel():
             photo_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
             photo_file.save(photo_path)
 
-        write_to_csv(timestamp, site, vehicle, driver_name, odometer, start, end, pumped, photo_path)
+        write_to_csv(timestamp, site, vehicle, driver_name, odometer, start, end, pumped)
+
 
         return render_template_string(HTML_FORM + "<p style='color:green; font-weight:bold;'>✅ Logged successfully!</p>")
 
@@ -401,39 +396,14 @@ def download():
     ws = wb.active
     ws.title = "Fuel Log"
 
-    # Write headers
-    headers = list(df.columns)
-    ws.append(headers)
+    # Write headers and data
+    for r in dataframe_to_rows(df, index=False, header=True):
+        ws.append(r)
 
-    # Determine the photo column index (0-based)
-    photo_col_idx = headers.index('Photo')  # Should be 8
-
-    for idx, row in df.iterrows():
-        # Write all columns except Photo path (last column)
-        data = row.tolist()
-        ws.append(data)
-
-        photo_path = row['Photo']
-        if isinstance(photo_path, str) and photo_path and os.path.exists(photo_path):
-            img = OpenPyxlImage(photo_path)
-            img.width = 80  # Optional: resize image width
-            img.height = 60  # Optional: resize image height
-
-            # Excel rows are 1-indexed and header occupies first row, so +2 offset
-            excel_row = idx + 2
-
-            # Get Excel column letter for 'Photo' column (1-indexed)
-            photo_col_letter = get_column_letter(photo_col_idx + 1)
-
-            # Anchor the image inside the correct cell
-            img.anchor = f'{photo_col_letter}{excel_row}'
-            ws.add_image(img)
-
-    excel_file = 'fuel_log_with_images.xlsx'
+    excel_file = 'fuel_log.xlsx'
     wb.save(excel_file)
 
     return send_file(excel_file, as_attachment=True)
-
 
 
 if __name__ == '__main__':
