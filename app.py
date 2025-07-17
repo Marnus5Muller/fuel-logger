@@ -130,8 +130,8 @@ HTML_FORM = '''
         <label for="site">Select Site:</label>
         <select id="site" name="site" onchange="toggleVehicleField()">
             <option value="">--Select Site--</option>
-            <option value="Holfontein">Holfontein</option>
-            <option value="Plank">Plank</option>
+            <option value="Holfontein" {% if site == 'Holfontein' %}selected{% endif %}>Holfontein</option>
+            <option value="Plank" {% if site == 'Plank' %}selected{% endif %}>Plank</option>
         </select>
 
         <!-- Holfontein Vehicle Dropdown -->
@@ -179,21 +179,21 @@ HTML_FORM = '''
 
 
         <label for="driver_name">Driver Name:</label>
-        <input id="driver_name" name="driver_name" type="text" required>
+        <input id="driver_name" name="driver_name" type="text" value="{{ driver_name | default('') }}" required>
 
         <label for="odometer">Vehicle Odometer:</label>
-        <input id="odometer" name="odometer" type="number" step="0.1" required>
+        <input id="odometer" name="odometer" type="number" step="0.1" value="{{ odometer | default('') }}" required>
 
 
         <label for="start">Pump Start Reading:</label>
-        <input id="start" name="start" type="number" step="0.1" required oninput="calculateEnd()">
+        <input id="start" name="start" type="number" step="0.1" value="{{ start | default('') }}" required oninput="calculateEnd()">
         {% if error %}
         <div style="color:red; font-size:18px; font-weight:bold; margin-top:5px;">{{ error }}</div>
         {% endif %}
 
 
         <label for="pumped_input">Pumped (Litres):</label>
-        <input id="pumped_input" name="pumped" type="number" step="0.1" required oninput="calculateEnd()">
+        <input id="pumped_input" name="pumped" type="number" step="0.1" value="{{ pumped | default('') }}" required oninput="calculateEnd()">
 
         <div class="result">End Reading: <span id="calculated_end">0.00</span></div>
 
@@ -362,7 +362,18 @@ def log_fuel():
             _, prev_end = previous
             if round(start, 1) != round(prev_end, 1):
                 error = f"❌ Invalid entry: Start reading ({start:.1f}) must equal previous end reading ({prev_end:.1f})."
-                return render_template_string(HTML_FORM, error=error)
+                return render_template_string(
+                    HTML_FORM,
+                    error=error,
+                    site=site,
+                    vehicle_text=request.form.get('vehicle_text', ''),
+                    vehicle_select=request.form.get('vehicle_select', ''),
+                    driver_name=driver_name,
+                    odometer=odometer,
+                    start=start,
+                    pumped=pumped
+                )
+
 
         # ✅ Save data to CSV with photo filename as last column
         photo_file = request.files.get('photo')
