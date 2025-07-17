@@ -128,7 +128,7 @@ HTML_FORM = '''
     <form method="POST" enctype="multipart/form-data">
         <!-- Site Dropdown -->
         <label for="site">Select Site:</label>
-        <select id="site" name="site" onchange="toggleVehicleField()">
+        <select id="site" name="site" onchange="toggleVehicleField()" required>
             <option value="">--Select Site--</option>
             <option value="Holfontein" {% if site == 'Holfontein' %}selected{% endif %}>Holfontein</option>
             <option value="Plank" {% if site == 'Plank' %}selected{% endif %}>Plank</option>
@@ -139,19 +139,19 @@ HTML_FORM = '''
             <label for="vehicle_select">Vehicle:</label>
             <select id="vehicle_select" name="vehicle_select">
                 <option value="">--Select Vehicle--</option>
-                <option>Geni 1</option>
-                <option>Geni 2</option>
-                <option>Geni3 Hopper</option>
-                <option>Landini 1</option>
-                <option>Landini 2</option>
-                <option>Landini 3</option>
-                <option>Landini 4</option>
-                <option>Landini 5</option>
-                <option>Mahindra Bakkie</option>
-                <option>MF DHS856FS</option>
-                <option>MF DHS872FS</option>
-                <option>MF DHS879FS</option>
-                <option>MF DHS885FS</option>
+                <option {% if vehicle_select == 'Geni 1' %}selected{% endif %}>Geni 1</option>
+                <option {% if vehicle_select == 'Geni 2' %}selected{% endif %}>Geni 2</option>
+                <option {% if vehicle_select == 'Geni3 Hopper' %}selected{% endif %}>Geni3 Hopper</option>
+                <option {% if vehicle_select == 'Landini 1' %}selected{% endif %}>Landini 1</option>
+                <option {% if vehicle_select == 'Landini 2' %}selected{% endif %}>Landini 2</option>
+                <option {% if vehicle_select == 'Landini 3' %}selected{% endif %}>Landini 3</option>
+                <option {% if vehicle_select == 'Landini 4' %}selected{% endif %}>Landini 4</option>
+                <option {% if vehicle_select == 'Landini 5' %}selected{% endif %}>Landini 5</option>
+                <option {% if vehicle_select == 'Mahindra Bakkie' %}selected{% endif %}>Mahindra Bakkie</option>
+                <option {% if vehicle_select == 'MF DHS856FS' %}selected{% endif %}>MF DHS856FS</option>
+                <option {% if vehicle_select == 'MF DHS872FS' %}selected{% endif %}>MF DHS872FS</option>
+                <option {% if vehicle_select == 'MF DHS879FS' %}selected{% endif %}>MF DHS879FS</option>
+                <option {% if vehicle_select == 'MF DHS885FS' %}selected{% endif %}>MF DHS885FS</option>
             </select>
         </div>
 
@@ -164,17 +164,36 @@ HTML_FORM = '''
         <script>
         function toggleVehicleField() {
             var site = document.getElementById("site").value;
+            var vehicleDropdown = document.getElementById("vehicle_dropdown");
+            var vehicleInput = document.getElementById("vehicle_input");
+            var vehicleSelect = document.getElementById("vehicle_select");
+            var vehicleText = document.getElementById("vehicle_text");
+
             if (site === "Holfontein") {
-                document.getElementById("vehicle_dropdown").style.display = "block";
-                document.getElementById("vehicle_input").style.display = "none";
+                vehicleDropdown.style.display = "block";
+                vehicleInput.style.display = "none";
+
+                vehicleSelect.setAttribute("required", "true");
+                vehicleText.removeAttribute("required");
+
             } else if (site === "Plank") {
-                document.getElementById("vehicle_dropdown").style.display = "none";
-                document.getElementById("vehicle_input").style.display = "block";
+                vehicleDropdown.style.display = "none";
+                vehicleInput.style.display = "block";
+
+                vehicleText.setAttribute("required", "true");
+                vehicleSelect.removeAttribute("required");
+
             } else {
-                document.getElementById("vehicle_dropdown").style.display = "none";
-                document.getElementById("vehicle_input").style.display = "none";
+                vehicleDropdown.style.display = "none";
+                vehicleInput.style.display = "none";
+
+                vehicleSelect.removeAttribute("required");
+                vehicleText.removeAttribute("required");
             }
         }
+
+        // ✅ Run on page load to restore state after error
+        document.addEventListener("DOMContentLoaded", toggleVehicleField);
         </script>
 
 
