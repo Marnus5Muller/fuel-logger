@@ -4,6 +4,8 @@ import os
 import csv
 import pandas as pd
 from werkzeug.utils import secure_filename
+from datetime import datetime
+from zoneinfo import ZoneInfo
 
 app = Flask(__name__)
 app.secret_key = '9f3e8c2b5d7a4f9cbb8e1d0a3f7c6e4520d93f4a1b6c7e8d9f1a2b3c4d5e6f7a'
@@ -346,7 +348,8 @@ def log_fuel():
         start = float(request.form.get('start'))
         pumped = float(request.form.get('pumped'))
         end = start + pumped
-        timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        tz = ZoneInfo("Africa/Johannesburg")  # or your local timezone
+        timestamp = datetime.now(tz).strftime('%Y-%m-%d %H:%M:%S')
 
         # Vehicle logic
         vehicle = request.form.get('vehicle_text') if site == "Plank" else request.form.get('vehicle_select')
@@ -383,17 +386,54 @@ def log_fuel():
 
 
 
+from openpyxl import Workbook
+from openpyxl.drawing.image import Image as OpenPyxlImage
+from openpyxl.utils import get_column_letter
+
 @app.route('/download')
 def download():
     if not os.path.exists(CSV_FILE):
         return "No data to download yet.", 404
 
     df = pd.read_csv(CSV_FILE)
-    excel_file = 'fuel_log.xlsx'
-    with pd.ExcelWriter(excel_file, engine='openpyxl', date_format='YYYY-MM-DD HH:MM:SS') as writer:
-        df.to_excel(writer, index=False)
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Fuel Log"
+
+    # Write headers
+    headers = list(df.columns)
+    ws.append(headers)
+
+    # Determine the photo column index (0-based)
+    photo_col_idx = headers.index('Photo')  # Should be 8
+
+    for idx, row in df.iterrows():
+        # Write all columns except Photo path (last column)
+        data = row.tolist()
+        ws.append(data)
+
+        photo_path = row['Photo']
+        if isinstance(photo_path, str) and photo_path and os.path.exists(photo_path):
+            img = OpenPyxlImage(photo_path)
+            img.width = 80  # Optional: resize image width
+            img.height = 60  # Optional: resize image height
+
+            # Excel rows are 1-indexed and header occupies first row, so +2 offset
+            excel_row = idx + 2
+
+            # Get Excel column letter for 'Photo' column (1-indexed)
+            photo_col_letter = get_column_letter(photo_col_idx + 1)
+
+            # Anchor the image inside the correct cell
+            img.anchor = f'{photo_col_letter}{excel_row}'
+            ws.add_image(img)
+
+    excel_file = 'fuel_log_with_images.xlsx'
+    wb.save(excel_file)
 
     return send_file(excel_file, as_attachment=True)
+
 
 
 if __name__ == '__main__':
