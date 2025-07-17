@@ -186,6 +186,7 @@ HTML_FORM = '''
         <button type="submit">Log Fuel</button>
     </form>
     <div class="logout"><a href="/logout">Logout</a></div>
+    <a href="/download" style="display:block; margin-top: 20px; font-size:18px;">⬇️ Download Fuel Log Excel</a>
 
 </body>
 </html>
