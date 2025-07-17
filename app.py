@@ -3,9 +3,18 @@ from datetime import datetime
 import os
 import csv
 import pandas as pd
+from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
 app.secret_key = '9f3e8c2b5d7a4f9cbb8e1d0a3f7c6e4520d93f4a1b6c7e8d9f1a2b3c4d5e6f7a'
+
+UPLOAD_FOLDER = 'uploads'
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg'}
+
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 USERNAME = 'Marnus'
 PASSWORD = 'NEX@test149'  # Change this!
@@ -111,7 +120,7 @@ HTML_FORM = '''
 <body>
     <img class="logo" src="/static/logo.png" alt="Logo">
     <h2>⛽ Fuel Log Entry</h2>
-    <form method="POST">
+    <form method="POST" enctype="multipart/form-data">
         <!-- Site Dropdown -->
         <label for="site">Select Site:</label>
         <select id="site" name="site" onchange="toggleVehicleField()">
@@ -172,7 +181,7 @@ HTML_FORM = '''
 
 
         <label for="start">Pump Start Reading:</label>
-        <input id="start" name="start" type="number" step="0.01" required oninput="calculateEnd()">
+        <input id="start" name="start" type="number" step="0.1" required oninput="calculateEnd()">
         {% if error %}
         <div style="color:red; font-size:18px; font-weight:bold; margin-top:5px;">{{ error }}</div>
         {% endif %}
@@ -182,6 +191,9 @@ HTML_FORM = '''
         <input id="pumped_input" name="pumped" type="number" step="0.1" required oninput="calculateEnd()">
 
         <div class="result">End Reading: <span id="calculated_end">0.00</span></div>
+
+        <label for="photo">Upload Photo:</label>
+        <input id="photo" name="photo" type="file" accept="image/*">
 
         <button type="submit">Log Fuel</button>
     </form>
@@ -282,13 +294,13 @@ LOGIN_FORM = '''
 </html>
 '''
 
-def write_to_csv(timestamp, site, vehicle, driver_name, odometer, start, end, pumped):
+def write_to_csv(timestamp, site, vehicle, driver_name, odometer, start, end, pumped, photo_path):
     file_exists = os.path.exists(CSV_FILE)
     with open(CSV_FILE, 'a', newline='', encoding='utf-8') as csvfile:
         writer = csv.writer(csvfile)
         if not file_exists:
-            writer.writerow(['Timestamp', 'Site', 'Vehicle', 'Driver Name', 'Odometer', 'Start Reading', 'End Reading', 'Pumped'])
-        writer.writerow([timestamp, site, vehicle, driver_name, odometer, start, end, pumped])
+            writer.writerow(['Timestamp', 'Site', 'Vehicle', 'Driver Name', 'Odometer', 'Start Reading', 'End Reading', 'Pumped', 'Photo'])
+        writer.writerow([timestamp, site, vehicle, driver_name, odometer, start, end, pumped, photo_path])
 
 
 def get_last_readings():
@@ -327,6 +339,7 @@ def log_fuel():
         return redirect(url_for('login'))
 
     if request.method == 'POST':
+        # Existing form fields
         site = request.form.get('site')
         driver_name = request.form.get('driver_name')
         odometer = float(request.form.get('odometer'))
@@ -335,11 +348,18 @@ def log_fuel():
         end = start + pumped
         timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
-        if site == "Plank":
-            vehicle = request.form.get('vehicle_text')  # Free text input
-        else:
-            vehicle = request.form.get('vehicle_select')  # Dropdown
+        # Vehicle logic
+        vehicle = request.form.get('vehicle_text') if site == "Plank" else request.form.get('vehicle_select')
 
+        # ✅ Handle image upload
+        photo = request.files.get('photo')
+        photo_filename = ''
+        if photo and photo.filename != '':
+            photo_filename = secure_filename(photo.filename)
+            photo_path = os.path.join(app.config['UPLOAD_FOLDER'], photo_filename)
+            photo.save(photo_path)
+
+        # ✅ Validate previous reading
         previous = get_last_readings()
         if previous:
             _, prev_end = previous
@@ -347,10 +367,20 @@ def log_fuel():
                 error = f"❌ Invalid entry: Start reading ({start:.1f}) must equal previous end reading ({prev_end:.1f})."
                 return render_template_string(HTML_FORM, error=error)
 
-        write_to_csv(timestamp, site, vehicle, driver_name, odometer, start, end, pumped)
+        # ✅ Save data to CSV with photo filename as last column
+        photo_file = request.files.get('photo')
+        photo_path = ''
+        if photo_file and allowed_file(photo_file.filename):
+            filename = secure_filename(photo_file.filename)
+            photo_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+            photo_file.save(photo_path)
+
+        write_to_csv(timestamp, site, vehicle, driver_name, odometer, start, end, pumped, photo_path)
+
         return render_template_string(HTML_FORM + "<p style='color:green; font-weight:bold;'>✅ Logged successfully!</p>")
 
     return render_template_string(HTML_FORM)
+
 
 
 @app.route('/download')
@@ -359,10 +389,11 @@ def download():
         return "No data to download yet.", 404
 
     df = pd.read_csv(CSV_FILE)
-    excel_file = '/tmp/fuel_log.xlsx'  # ✅ Safe temporary directory for Render
-    df.to_excel(excel_file, index=False)
-    return send_file(excel_file, as_attachment=True)
+    excel_file = 'fuel_log.xlsx'
+    with pd.ExcelWriter(excel_file, engine='openpyxl', date_format='YYYY-MM-DD HH:MM:SS') as writer:
+        df.to_excel(writer, index=False)
 
+    return send_file(excel_file, as_attachment=True)
 
 
 if __name__ == '__main__':
