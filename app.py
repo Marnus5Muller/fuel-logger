@@ -1,3 +1,7 @@
+#git add .
+#git commit -m "Python Change 2"
+#git push origin main
+
 from flask import Flask, request, render_template_string, redirect, url_for, session, send_file
 from datetime import datetime
 import os
@@ -10,21 +14,21 @@ import os
 from openpyxl.utils.dataframe import dataframe_to_rows
 
 
+
 app = Flask(__name__)
 app.secret_key = '9f3e8c2b5d7a4f9cbb8e1d0a3f7c6e4520d93f4a1b6c7e8d9f1a2b3c4d5e6f7a'
 
-UPLOAD_FOLDER = 'uploads'
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg'}
-
-def allowed_file(filename):
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 USERNAME = 'Marnus'
 PASSWORD = 'NEX@test149'  # Change this!
 
-CSV_FILE = 'fuel_log.csv'
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+CSV_FILE = os.path.join(BASE_DIR, 'fuel_log.csv')
+EXCEL_FILE = os.path.join(BASE_DIR, 'fuel_log.xlsx')
+
+UPLOAD_FOLDER = os.path.join(BASE_DIR, 'uploads')    # Absolute path for uploads
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 HTML_FORM = '''
 <!DOCTYPE html>
@@ -396,16 +400,7 @@ def log_fuel():
             error = "❌ All numeric values must be greater than zero."
             return render_template_string(HTML_FORM, error=error, site=site, driver_name=driver_name, odometer=odometer, start=start, pumped=pumped)
 
-        # ✅ Save data to CSV with photo filename as last column
-        photo_file = request.files.get('photo')
-        photo_path = ''
-        if photo_file and allowed_file(photo_file.filename):
-            filename = secure_filename(photo_file.filename)
-            photo_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-            photo_file.save(photo_path)
-
         write_to_csv(timestamp, site, vehicle, driver_name, odometer, start, end, pumped)
-
 
         return render_template_string(HTML_FORM + "<p style='color:green; font-weight:bold;'>✅ Logged successfully!</p>")
 
@@ -432,10 +427,9 @@ def download():
     for r in dataframe_to_rows(df, index=False, header=True):
         ws.append(r)
 
-    excel_file = 'fuel_log.xlsx'
-    wb.save(excel_file)
+    wb.save(EXCEL_FILE)
+    return send_file(EXCEL_FILE, as_attachment=True)
 
-    return send_file(excel_file, as_attachment=True)
 
 
 if __name__ == '__main__':
