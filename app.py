@@ -12,12 +12,24 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 import os
 from openpyxl.utils.dataframe import dataframe_to_rows
-
-
+from flask_sqlalchemy import SQLAlchemy
 
 app = Flask(__name__)
 app.secret_key = '9f3e8c2b5d7a4f9cbb8e1d0a3f7c6e4520d93f4a1b6c7e8d9f1a2b3c4d5e6f7a'
+app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('postgresql://fuel_log_user:n2hpkr7iVc9wV8c1C5s8VEJCUByKRn2Z@dpg-d1sugn6r433s73eotcbg-a/fuel_log')
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+db = SQLAlchemy(app)
 
+class FuelLog(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    timestamp = db.Column(db.DateTime, nullable=False)
+    site = db.Column(db.String(50), nullable=False)
+    vehicle = db.Column(db.String(100), nullable=False)
+    driver_name = db.Column(db.String(100), nullable=False)
+    odometer = db.Column(db.Float, nullable=False)
+    start_reading = db.Column(db.Float, nullable=False)
+    end_reading = db.Column(db.Float, nullable=False)
+    pumped = db.Column(db.Float, nullable=False)
 
 USERNAME = 'Marnus'
 PASSWORD = 'NEX@test149'  # Change this!
@@ -319,27 +331,49 @@ LOGIN_FORM = '''
 </html>
 '''
 
-def write_to_csv(timestamp, site, vehicle, driver_name, odometer, start, end, pumped):
-    file_exists = os.path.exists(CSV_FILE)
-    with open(CSV_FILE, 'a', newline='', encoding='utf-8') as csvfile:
-        writer = csv.writer(csvfile)
-        if not file_exists:
-            writer.writerow(['Timestamp', 'Site', 'Vehicle', 'Driver Name', 'Odometer', 'Start Reading', 'End Reading', 'Pumped'])
-        writer.writerow([timestamp, site, vehicle, driver_name, odometer, start, end, pumped])
+# def write_to_csv(timestamp, site, vehicle, driver_name, odometer, start, end, pumped):
+#     file_exists = os.path.exists(CSV_FILE)
+#     with open(CSV_FILE, 'a', newline='', encoding='utf-8') as csvfile:
+#         writer = csv.writer(csvfile)
+#         if not file_exists:
+#             writer.writerow(['Timestamp', 'Site', 'Vehicle', 'Driver Name', 'Odometer', 'Start Reading', 'End Reading', 'Pumped'])
+#         writer.writerow([timestamp, site, vehicle, driver_name, odometer, start, end, pumped])
 
 
+
+
+
+# def get_last_readings():
+#     if not os.path.exists(CSV_FILE):
+#         return None
+#     df = pd.read_csv(CSV_FILE)
+#     if df.empty:
+#         return None
+#     last_row = df.iloc[-1]
+#     last_start = float(last_row['Start Reading'])
+#     last_end = float(last_row['End Reading'])
+#     return last_start, last_end
+
+def write_to_db(timestamp, site, vehicle, driver_name, odometer, start, end, pumped):
+    new_entry = FuelLog(
+        timestamp=timestamp,
+        site=site,
+        vehicle=vehicle,
+        driver_name=driver_name,
+        odometer=odometer,
+        start_reading=start,
+        end_reading=end,
+        pumped=pumped
+    )
+    db.session.add(new_entry)
+    db.session.commit()
 
 
 def get_last_readings():
-    if not os.path.exists(CSV_FILE):
+    last_entry = FuelLog.query.order_by(FuelLog.timestamp.desc()).first()
+    if last_entry is None:
         return None
-    df = pd.read_csv(CSV_FILE)
-    if df.empty:
-        return None
-    last_row = df.iloc[-1]
-    last_start = float(last_row['Start Reading'])
-    last_end = float(last_row['End Reading'])
-    return last_start, last_end
+    return last_entry.start_reading, last_entry.end_reading
 
 
 @app.route('/login', methods=['GET', 'POST'])
@@ -400,7 +434,9 @@ def log_fuel():
             error = "❌ All numeric values must be greater than zero."
             return render_template_string(HTML_FORM, error=error, site=site, driver_name=driver_name, odometer=odometer, start=start, pumped=pumped)
 
-        write_to_csv(timestamp, site, vehicle, driver_name, odometer, start, end, pumped)
+        from datetime import datetime
+        write_to_db(datetime.strptime(timestamp, '%Y-%m-%d %H:%M:%S'), site, vehicle, driver_name, odometer, start, end, pumped)
+
 
         return render_template_string(HTML_FORM + "<p style='color:green; font-weight:bold;'>✅ Logged successfully!</p>")
 
@@ -414,23 +450,36 @@ from openpyxl.utils import get_column_letter
 
 @app.route('/download')
 def download():
-    if not os.path.exists(CSV_FILE):
-        return "No data to download yet.", 404
+    entries = FuelLog.query.order_by(FuelLog.timestamp.asc()).all()
 
-    df = pd.read_csv(CSV_FILE)
+    if not entries:
+        return "No data to download yet.", 404
 
     wb = Workbook()
     ws = wb.active
     ws.title = "Fuel Log"
 
-    # Write headers and data
-    for r in dataframe_to_rows(df, index=False, header=True):
-        ws.append(r)
+    # Write header row
+    ws.append(['Timestamp', 'Site', 'Vehicle', 'Driver Name', 'Odometer', 'Start Reading', 'End Reading', 'Pumped'])
+
+    # Write data rows
+    for e in entries:
+        ws.append([
+            e.timestamp.strftime('%Y-%m-%d %H:%M:%S'),
+            e.site,
+            e.vehicle,
+            e.driver_name,
+            e.odometer,
+            e.start_reading,
+            e.end_reading,
+            e.pumped
+        ])
 
     wb.save(EXCEL_FILE)
     return send_file(EXCEL_FILE, as_attachment=True)
 
-
+with app.app_context():
+    db.create_all()
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)
