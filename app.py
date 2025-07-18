@@ -248,6 +248,13 @@ HTML_FORM = '''
     
     <div class="logout"><a href="/logout">Logout</a></div>
     <a href="/download" style="display:block; margin-top: 20px; font-size:18px;">⬇️ Download Fuel Log Excel</a>
+    
+    {% if success %}
+    <script>
+        // Show success popup
+        alert("{{ success }}");
+    </script>
+    {% endif %}
 
 </body>
 </html>
@@ -372,11 +379,11 @@ def log_fuel():
         return redirect(url_for('login'))
 
     error = None
+    success = None  # ✅ Add success flag
 
     if request.method == 'POST':
         site = request.form.get('site')
 
-        # ✅ Determine vehicle based on site
         if site == "Holfontein":
             vehicle = request.form.get('vehicle_select')
         elif site == "Plank":
@@ -391,9 +398,8 @@ def log_fuel():
         pumped = float(request.form.get('pumped', 0))
         end = start + pumped
 
-        # ✅ Check last entry in the table
+        # ✅ Validate against last entry
         last_entry = FuelLog.query.order_by(FuelLog.timestamp.desc()).first()
-
         if last_entry:
             expected_start = round(last_entry.end_reading, 2)
             if round(start, 2) != expected_start:
@@ -407,9 +413,7 @@ def log_fuel():
                     odometer=odometer,
                     start=start,
                     pumped=pumped
-        )
-
-
+                )
 
         # ✅ Insert only if validation passed
         tz = ZoneInfo("Africa/Johannesburg")
@@ -421,7 +425,10 @@ def log_fuel():
         db.session.add(new_entry)
         db.session.commit()
 
-    return render_template_string(HTML_FORM, error=error)
+        success = "✅ Fuel log added successfully!"
+
+    return render_template_string(HTML_FORM, error=error, success=success)
+
 
 
 
