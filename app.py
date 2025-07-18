@@ -408,7 +408,8 @@ def log_fuel():
         pumped = float(request.form.get('pumped'))
         end = start + pumped
         tz = ZoneInfo("Africa/Johannesburg")
-        timestamp = datetime.now(tz)
+        timestamp = datetime.now(tz).replace(tzinfo=None)
+
 
         # Vehicle logic
         vehicle = request.form.get('vehicle_text') if site == "Plank" else request.form.get('vehicle_select')
