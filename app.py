@@ -407,8 +407,8 @@ def log_fuel():
         start = float(request.form.get('start'))
         pumped = float(request.form.get('pumped'))
         end = start + pumped
-        tz = ZoneInfo("Africa/Johannesburg")  # or your local timezone
-        timestamp = datetime.now(tz).strftime('%Y-%m-%d %H:%M:%S')
+        tz = ZoneInfo("Africa/Johannesburg")
+        timestamp = datetime.now(tz)
 
         # Vehicle logic
         vehicle = request.form.get('vehicle_text') if site == "Plank" else request.form.get('vehicle_select')
@@ -434,8 +434,8 @@ def log_fuel():
             error = "❌ All numeric values must be greater than zero."
             return render_template_string(HTML_FORM, error=error, site=site, driver_name=driver_name, odometer=odometer, start=start, pumped=pumped)
 
-        from datetime import datetime
-        write_to_db(datetime.strptime(timestamp, '%Y-%m-%d %H:%M:%S'), site, vehicle, driver_name, odometer, start, end, pumped)
+        
+        write_to_db(timestamp, site, vehicle, driver_name, odometer, start, end, pumped)
 
 
         return render_template_string(HTML_FORM + "<p style='color:green; font-weight:bold;'>✅ Logged successfully!</p>")
