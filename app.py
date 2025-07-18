@@ -46,82 +46,6 @@ class FuelLog(db.Model):
     end_reading = db.Column(db.Float, nullable=False)
     pumped = db.Column(db.Float, nullable=False)
 
-# CREATE_USER_FORM = '''
-# <!DOCTYPE html>
-# <html>
-# <head>
-#     <title>Create User</title>
-#     <meta name="viewport" content="width=device-width, initial-scale=1">
-#     <style>
-#         body {
-#             font-family: Arial, sans-serif;
-#             padding: 20px;
-#         }
-#         .container {
-#             max-width: 400px;
-#             margin: auto;
-#             background-color: #fff;
-#             padding: 30px;
-#             border-radius: 8px;
-#             box-shadow: 0 0 10px rgba(0,0,0,0.1);
-#         }
-#         label {
-#             display: block;
-#             margin-top: 15px;
-#             font-weight: bold;
-#         }
-#         input {
-#             width: 100%;
-#             padding: 12px;
-#             margin-top: 5px;
-#             box-sizing: border-box;
-#         }
-#         button {
-#             margin-top: 20px;
-#             width: 100%;
-#             padding: 12px;
-#             background-color: #28a745;
-#             color: white;
-#             font-size: 18px;
-#             border: none;
-#             cursor: pointer;
-#         }
-#         button:hover {
-#             background-color: #218838;
-#         }
-#         .error {
-#             color: red;
-#             margin-top: 10px;
-#         }
-#     </style>
-# </head>
-# <body>
-# <div class="container">
-#     <h2>Create New User</h2>
-#     <form method="POST">
-#         <label for="username">Username:</label>
-#         <input id="username" name="username" required>
-
-#         <label for="password">Password:</label>
-#         <input id="password" name="password" type="password" required>
-
-#         <label for="role">Role:</label>
-#         <select id="role" name="role" required>
-#             <option value="admin">Admin</option>
-#             <option value="user">User</option>
-#         </select>
-
-#         <button type="submit">Create User</button>
-#     </form>
-#     {% if error %}
-#     <div class="error">{{ error }}</div>
-#     {% endif %}
-# </div>
-# </body>
-# </html>
-# '''
-
-
 HTML_FORM = '''
 <!DOCTYPE html>
 <html>
@@ -314,13 +238,14 @@ HTML_FORM = '''
         <div class="result">End Reading: <span id="calculated_end">0.00</span></div>
 
         <button type="submit">Log Fuel</button>
+        </form>
 
         {% if session.get('role') == 'admin' %}
         <form method="POST" action="/clear_db" onsubmit="return confirm('Are you sure you want to clear all records?');" style="margin-bottom: 20px;">
             <button type="submit" style="background-color: #d9534f;">⚠️ Clear All Records (Admin Only)</button>
         </form>
         {% endif %}
-    </form>
+    
     <div class="logout"><a href="/logout">Logout</a></div>
     <a href="/download" style="display:block; margin-top: 20px; font-size:18px;">⬇️ Download Fuel Log Excel</a>
 
@@ -418,29 +343,6 @@ LOGIN_FORM = '''
 </html>
 '''
 
-# def write_to_csv(timestamp, site, vehicle, driver_name, odometer, start, end, pumped):
-#     file_exists = os.path.exists(CSV_FILE)
-#     with open(CSV_FILE, 'a', newline='', encoding='utf-8') as csvfile:
-#         writer = csv.writer(csvfile)
-#         if not file_exists:
-#             writer.writerow(['Timestamp', 'Site', 'Vehicle', 'Driver Name', 'Odometer', 'Start Reading', 'End Reading', 'Pumped'])
-#         writer.writerow([timestamp, site, vehicle, driver_name, odometer, start, end, pumped])
-
-
-
-
-
-# def get_last_readings():
-#     if not os.path.exists(CSV_FILE):
-#         return None
-#     df = pd.read_csv(CSV_FILE)
-#     if df.empty:
-#         return None
-#     last_row = df.iloc[-1]
-#     last_start = float(last_row['Start Reading'])
-#     last_end = float(last_row['End Reading'])
-#     return last_start, last_end
-
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     error = None
@@ -458,8 +360,6 @@ def login():
     return render_template_string(LOGIN_FORM, error=error)
 
 
-
-
 @app.route('/logout')
 def logout():
     session.clear()
@@ -472,13 +372,22 @@ def log_fuel():
         return redirect(url_for('login'))
 
     if request.method == 'POST':
-        site = request.form['site']
-        vehicle = request.form['vehicle']
-        driver_name = request.form['driver_name']
-        odometer = float(request.form['odometer'])
-        start = float(request.form['start'])
-        pumped = float(request.form['pumped'])
+        site = request.form.get('site')
+        if site == 'Holfontein':
+            vehicle = request.form.get('vehicle_select')
+        elif site == 'Plank':
+            vehicle = request.form.get('vehicle_text')
+        else:
+            vehicle = None  # or handle as error
+
+        driver_name = request.form.get('driver_name')
+        odometer = float(request.form.get('odometer', 0))
+        start = float(request.form.get('start', 0))
+        pumped = float(request.form.get('pumped', 0))
         end = start + pumped
+
+        # Validate required fields here if you want
+
         tz = ZoneInfo("Africa/Johannesburg")
         timestamp = datetime.now(tz).replace(tzinfo=None)
 
@@ -489,28 +398,6 @@ def log_fuel():
         db.session.commit()
     return render_template_string(HTML_FORM)
 
-
-# @app.route('/create-user', methods=['GET', 'POST'])
-# def create_user():
-#     if session.get('role') != 'admin':
-#         return "❌ Access Denied", 403
-
-#     message = None
-#     if request.method == 'POST':
-#         username = request.form['username']
-#         password = request.form['password']
-#         role = request.form['role']
-#         if User.query.filter_by(username=username).first():
-#             message = "❌ User already exists"
-#         else:
-#             new_user = User(username=username, role=role)
-#             new_user.set_password(password)
-#             db.session.add(new_user)
-#             db.session.commit()
-#             message = "✅ User created successfully!"
-#     return render_template_string(CREATE_USER_FORM, message=message)
-
-
 @app.route('/clear_db', methods=['POST'])
 def clear_db():
     if not session.get('logged_in') or session.get('role') != 'admin':
@@ -520,7 +407,6 @@ def clear_db():
     FuelLog.query.delete()
     db.session.commit()
     return redirect(url_for('log_fuel'))
-
 
 @app.route('/download')
 def download():
@@ -538,7 +424,6 @@ def download():
     file_path = "fuel_log.xlsx"
     wb.save(file_path)
     return send_file(file_path, as_attachment=True)
-
 
 ### Initialize DB ###
 with app.app_context():
