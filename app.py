@@ -371,14 +371,19 @@ def log_fuel():
     if not session.get('logged_in'):
         return redirect(url_for('login'))
 
+    error = None
+
     if request.method == 'POST':
         site = request.form.get('site')
-        if site == 'Holfontein':
+
+        # ✅ Determine vehicle based on site
+        if site == "Holfontein":
             vehicle = request.form.get('vehicle_select')
-        elif site == 'Plank':
+        elif site == "Plank":
             vehicle = request.form.get('vehicle_text')
         else:
-            vehicle = None  # or handle as error
+            error = "❌ Invalid site selected."
+            return render_template_string(HTML_FORM, error=error)
 
         driver_name = request.form.get('driver_name')
         odometer = float(request.form.get('odometer', 0))
@@ -386,8 +391,15 @@ def log_fuel():
         pumped = float(request.form.get('pumped', 0))
         end = start + pumped
 
-        # Validate required fields here if you want
+        # ✅ Check last record for this site & vehicle
+        last_entry = FuelLog.query.filter_by(site=site, vehicle=vehicle).order_by(FuelLog.timestamp.desc()).first()
 
+        if last_entry:
+            if round(last_entry.end_reading, 2) != round(start, 2):
+                error = f"❌ Start Reading ({start}) does NOT match last End Reading ({last_entry.end_reading})"
+                return render_template_string(HTML_FORM, error=error)
+
+        # ✅ Insert only if validation passed
         tz = ZoneInfo("Africa/Johannesburg")
         timestamp = datetime.now(tz).replace(tzinfo=None)
 
@@ -396,7 +408,10 @@ def log_fuel():
                             start_reading=start, end_reading=end, pumped=pumped)
         db.session.add(new_entry)
         db.session.commit()
-    return render_template_string(HTML_FORM)
+
+    return render_template_string(HTML_FORM, error=error)
+
+
 
 @app.route('/clear_db', methods=['POST'])
 def clear_db():
