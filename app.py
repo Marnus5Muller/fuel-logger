@@ -207,11 +207,7 @@ HTML_FORM = '''
             font-size: 22px;
             padding: 10px;
         }
-        {% if session.get('role') == 'admin' %}
-        <form method="POST" action="/clear_db" onsubmit="return confirm('Are you sure you want to clear all records?');" style="margin-bottom: 20px;">
-            <button type="submit" style="background-color: #d9534f;">⚠️ Clear All Records (Admin Only)</button>
-        </form>
-        {% endif %}
+        
     </style>
 
     <script>
@@ -318,6 +314,12 @@ HTML_FORM = '''
         <div class="result">End Reading: <span id="calculated_end">0.00</span></div>
 
         <button type="submit">Log Fuel</button>
+
+        {% if session.get('role') == 'admin' %}
+        <form method="POST" action="/clear_db" onsubmit="return confirm('Are you sure you want to clear all records?');" style="margin-bottom: 20px;">
+            <button type="submit" style="background-color: #d9534f;">⚠️ Clear All Records (Admin Only)</button>
+        </form>
+        {% endif %}
     </form>
     <div class="logout"><a href="/logout">Logout</a></div>
     <a href="/download" style="display:block; margin-top: 20px; font-size:18px;">⬇️ Download Fuel Log Excel</a>
