@@ -16,6 +16,11 @@ app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://fuel_log_user:n2hpkr7iVc9w
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 
+USERS = {
+    "NEX ADMIN": "Admin@test1234",
+    "NEX Holfontein": "NEX@test149"
+}
+
 ### DATABASE MODELS ###
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -435,15 +440,15 @@ def login():
     if request.method == 'POST':
         username = request.form['username']
         password = request.form['password']
-        user = User.query.filter_by(username=username).first()
-        if user and user.check_password(password):
+        
+        if username in USERS and USERS[username] == password:
             session['logged_in'] = True
-            session['username'] = user.username
-            session['role'] = user.role
+            session['username'] = username  # store username for role-based logic if needed
             return redirect(url_for('log_fuel'))
         else:
             error = "Invalid username or password"
     return render_template_string(LOGIN_FORM, error=error)
+
 
 
 @app.route('/logout')
