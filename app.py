@@ -391,13 +391,25 @@ def log_fuel():
         pumped = float(request.form.get('pumped', 0))
         end = start + pumped
 
-        # ✅ Check last record for this site & vehicle
-        last_entry = FuelLog.query.filter_by(site=site, vehicle=vehicle).order_by(FuelLog.timestamp.desc()).first()
+        # ✅ Check last entry in the table
+        last_entry = FuelLog.query.order_by(FuelLog.timestamp.desc()).first()
 
         if last_entry:
-            if round(last_entry.end_reading, 2) != round(start, 2):
-                error = f"❌ Start Reading ({start}) does NOT match last End Reading ({last_entry.end_reading})"
-                return render_template_string(HTML_FORM, error=error)
+            expected_start = round(last_entry.end_reading, 2)
+            if round(start, 2) != expected_start:
+                error = f"❌ Start Reading ({start}) does NOT match previous End Reading ({expected_start}). Please use {expected_start}."
+                return render_template_string(
+                    HTML_FORM,
+                    error=error,
+                    site=site,
+                    vehicle_select=vehicle if site == "Holfontein" else "",
+                    driver_name=driver_name,
+                    odometer=odometer,
+                    start=start,
+                    pumped=pumped
+        )
+
+
 
         # ✅ Insert only if validation passed
         tz = ZoneInfo("Africa/Johannesburg")
