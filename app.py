@@ -5,20 +5,30 @@
 from flask import Flask, request, render_template_string, redirect, url_for, session, send_file
 from datetime import datetime
 import os
-import csv
-import pandas as pd
-from werkzeug.utils import secure_filename
-from datetime import datetime
 from zoneinfo import ZoneInfo
-import os
-from openpyxl.utils.dataframe import dataframe_to_rows
 from flask_sqlalchemy import SQLAlchemy
+from werkzeug.security import generate_password_hash, check_password_hash
+from openpyxl import Workbook
 
 app = Flask(__name__)
 app.secret_key = '9f3e8c2b5d7a4f9cbb8e1d0a3f7c6e4520d93f4a1b6c7e8d9f1a2b3c4d5e6f7a'
 app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://fuel_log_user:n2hpkr7iVc9wV8c1C5s8VEJCUByKRn2Z@dpg-d1sugn6r433s73eotcbg-a/fuel_log'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
+
+### DATABASE MODELS ###
+class User(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(100), unique=True, nullable=False)
+    password_hash = db.Column(db.String(255), nullable=False)
+    role = db.Column(db.String(20), nullable=False, default='user')  # 'admin' or 'user'
+
+    def set_password(self, password):
+        self.password_hash = generate_password_hash(password)
+
+    def check_password(self, password):
+        return check_password_hash(self.password_hash, password)
+
 
 class FuelLog(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -31,16 +41,81 @@ class FuelLog(db.Model):
     end_reading = db.Column(db.Float, nullable=False)
     pumped = db.Column(db.Float, nullable=False)
 
-USERNAME = 'Marnus'
-PASSWORD = 'NEX@test149'  # Change this!
+CREATE_USER_FORM = '''
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Create User</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+        }
+        .container {
+            max-width: 400px;
+            margin: auto;
+            background-color: #fff;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        label {
+            display: block;
+            margin-top: 15px;
+            font-weight: bold;
+        }
+        input {
+            width: 100%;
+            padding: 12px;
+            margin-top: 5px;
+            box-sizing: border-box;
+        }
+        button {
+            margin-top: 20px;
+            width: 100%;
+            padding: 12px;
+            background-color: #28a745;
+            color: white;
+            font-size: 18px;
+            border: none;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #218838;
+        }
+        .error {
+            color: red;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h2>Create New User</h2>
+    <form method="POST">
+        <label for="username">Username:</label>
+        <input id="username" name="username" required>
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-CSV_FILE = os.path.join(BASE_DIR, 'fuel_log.csv')
-EXCEL_FILE = os.path.join(BASE_DIR, 'fuel_log.xlsx')
+        <label for="password">Password:</label>
+        <input id="password" name="password" type="password" required>
 
-UPLOAD_FOLDER = os.path.join(BASE_DIR, 'uploads')    # Absolute path for uploads
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+        <label for="role">Role:</label>
+        <select id="role" name="role" required>
+            <option value="admin">Admin</option>
+            <option value="user">User</option>
+        </select>
+
+        <button type="submit">Create User</button>
+    </form>
+    {% if error %}
+    <div class="error">{{ error }}</div>
+    {% endif %}
+</div>
+</body>
+</html>
+'''
+
 
 HTML_FORM = '''
 <!DOCTYPE html>
@@ -354,34 +429,17 @@ LOGIN_FORM = '''
 #     last_end = float(last_row['End Reading'])
 #     return last_start, last_end
 
-def write_to_db(timestamp, site, vehicle, driver_name, odometer, start, end, pumped):
-    new_entry = FuelLog(
-        timestamp=timestamp,
-        site=site,
-        vehicle=vehicle,
-        driver_name=driver_name,
-        odometer=odometer,
-        start_reading=start,
-        end_reading=end,
-        pumped=pumped
-    )
-    db.session.add(new_entry)
-    db.session.commit()
-
-
-def get_last_readings():
-    last_entry = FuelLog.query.order_by(FuelLog.timestamp.desc()).first()
-    if last_entry is None:
-        return None
-    return last_entry.start_reading, last_entry.end_reading
-
-
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     error = None
     if request.method == 'POST':
-        if request.form['username'] == USERNAME and request.form['password'] == PASSWORD:
+        username = request.form['username']
+        password = request.form['password']
+        user = User.query.filter_by(username=username).first()
+        if user and user.check_password(password):
             session['logged_in'] = True
+            session['username'] = user.username
+            session['role'] = user.role
             return redirect(url_for('log_fuel'))
         else:
             error = "Invalid username or password"
@@ -390,7 +448,7 @@ def login():
 
 @app.route('/logout')
 def logout():
-    session.pop('logged_in', None)
+    session.clear()
     return redirect(url_for('login'))
 
 
@@ -400,87 +458,81 @@ def log_fuel():
         return redirect(url_for('login'))
 
     if request.method == 'POST':
-        # Existing form fields
-        site = request.form.get('site')
-        driver_name = request.form.get('driver_name')
-        odometer = float(request.form.get('odometer'))
-        start = float(request.form.get('start'))
-        pumped = float(request.form.get('pumped'))
+        site = request.form['site']
+        vehicle = request.form['vehicle']
+        driver_name = request.form['driver_name']
+        odometer = float(request.form['odometer'])
+        start = float(request.form['start'])
+        pumped = float(request.form['pumped'])
         end = start + pumped
         tz = ZoneInfo("Africa/Johannesburg")
         timestamp = datetime.now(tz).replace(tzinfo=None)
 
-
-        # Vehicle logic
-        vehicle = request.form.get('vehicle_text') if site == "Plank" else request.form.get('vehicle_select')
-
-        # ✅ Validate previous reading
-        previous = get_last_readings()
-        if previous:
-            _, prev_end = previous
-            if round(start, 1) != round(prev_end, 1):
-                error = f"❌ Invalid entry: Start reading ({start:.1f}) must equal previous end reading ({prev_end:.1f})."
-                return render_template_string(
-                    HTML_FORM,
-                    error=error,
-                    site=site,
-                    vehicle_text=request.form.get('vehicle_text', ''),
-                    vehicle_select=request.form.get('vehicle_select', ''),
-                    driver_name=driver_name,
-                    odometer=odometer,
-                    start=start,
-                    pumped=pumped
-                )
-        if odometer <= 0 or start <= 0 or pumped <= 0:
-            error = "❌ All numeric values must be greater than zero."
-            return render_template_string(HTML_FORM, error=error, site=site, driver_name=driver_name, odometer=odometer, start=start, pumped=pumped)
-
-        
-        write_to_db(timestamp, site, vehicle, driver_name, odometer, start, end, pumped)
-
-
-        return render_template_string(HTML_FORM + "<p style='color:green; font-weight:bold;'>✅ Logged successfully!</p>")
-
+        new_entry = FuelLog(timestamp=timestamp, site=site, vehicle=vehicle,
+                            driver_name=driver_name, odometer=odometer,
+                            start_reading=start, end_reading=end, pumped=pumped)
+        db.session.add(new_entry)
+        db.session.commit()
     return render_template_string(HTML_FORM)
 
 
+@app.route('/create-user', methods=['GET', 'POST'])
+def create_user():
+    if session.get('role') != 'admin':
+        return "❌ Access Denied", 403
 
-from openpyxl import Workbook
-from openpyxl.drawing.image import Image as OpenPyxlImage
-from openpyxl.utils import get_column_letter
+    message = None
+    if request.method == 'POST':
+        username = request.form['username']
+        password = request.form['password']
+        role = request.form['role']
+        if User.query.filter_by(username=username).first():
+            message = "❌ User already exists"
+        else:
+            new_user = User(username=username, role=role)
+            new_user.set_password(password)
+            db.session.add(new_user)
+            db.session.commit()
+            message = "✅ User created successfully!"
+    return render_template_string(CREATE_USER_FORM, message=message)
+
+
+@app.route('/clear-db')
+def clear_db():
+    if session.get('role') != 'admin':
+        return "❌ Access Denied", 403
+    FuelLog.query.delete()
+    db.session.commit()
+    return "✅ Database cleared! <a href='/'>Back</a>"
+
 
 @app.route('/download')
 def download():
     entries = FuelLog.query.order_by(FuelLog.timestamp.asc()).all()
-
     if not entries:
         return "No data to download yet.", 404
 
     wb = Workbook()
     ws = wb.active
     ws.title = "Fuel Log"
-
-    # Write header row
-    ws.append(['Timestamp', 'Site', 'Vehicle', 'Driver Name', 'Odometer', 'Start Reading', 'End Reading', 'Pumped'])
-
-    # Write data rows
+    ws.append(['Timestamp', 'Site', 'Vehicle', 'Driver Name', 'Odometer', 'Start', 'End', 'Pumped'])
     for e in entries:
-        ws.append([
-            e.timestamp.strftime('%Y-%m-%d %H:%M:%S'),
-            e.site,
-            e.vehicle,
-            e.driver_name,
-            e.odometer,
-            e.start_reading,
-            e.end_reading,
-            e.pumped
-        ])
+        ws.append([e.timestamp.strftime('%Y-%m-%d %H:%M:%S'), e.site, e.vehicle, e.driver_name,
+                   e.odometer, e.start_reading, e.end_reading, e.pumped])
+    file_path = "fuel_log.xlsx"
+    wb.save(file_path)
+    return send_file(file_path, as_attachment=True)
 
-    wb.save(EXCEL_FILE)
-    return send_file(EXCEL_FILE, as_attachment=True)
 
+### Initialize DB ###
 with app.app_context():
     db.create_all()
+    # Ensure at least one admin exists
+    if not User.query.filter_by(username='admin').first():
+        admin = User(username='admin', role='admin')
+        admin.set_password('Admin123')  # Default password
+        db.session.add(admin)
+        db.session.commit()
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)
