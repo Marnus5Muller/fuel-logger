@@ -17,8 +17,8 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 
 USERS = {
-    "NEX ADMIN": "Admin@test1234",
-    "NEX Holfontein": "NEX@test149"
+    "NEX ADMIN":{"password": "Admin@test1234", "role": "admin"},
+    "NEX Holfontein": {"password":"NEX@test149", "role": "user"}
 }
 
 ### DATABASE MODELS ###
@@ -46,80 +46,80 @@ class FuelLog(db.Model):
     end_reading = db.Column(db.Float, nullable=False)
     pumped = db.Column(db.Float, nullable=False)
 
-CREATE_USER_FORM = '''
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Create User</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            padding: 20px;
-        }
-        .container {
-            max-width: 400px;
-            margin: auto;
-            background-color: #fff;
-            padding: 30px;
-            border-radius: 8px;
-            box-shadow: 0 0 10px rgba(0,0,0,0.1);
-        }
-        label {
-            display: block;
-            margin-top: 15px;
-            font-weight: bold;
-        }
-        input {
-            width: 100%;
-            padding: 12px;
-            margin-top: 5px;
-            box-sizing: border-box;
-        }
-        button {
-            margin-top: 20px;
-            width: 100%;
-            padding: 12px;
-            background-color: #28a745;
-            color: white;
-            font-size: 18px;
-            border: none;
-            cursor: pointer;
-        }
-        button:hover {
-            background-color: #218838;
-        }
-        .error {
-            color: red;
-            margin-top: 10px;
-        }
-    </style>
-</head>
-<body>
-<div class="container">
-    <h2>Create New User</h2>
-    <form method="POST">
-        <label for="username">Username:</label>
-        <input id="username" name="username" required>
+# CREATE_USER_FORM = '''
+# <!DOCTYPE html>
+# <html>
+# <head>
+#     <title>Create User</title>
+#     <meta name="viewport" content="width=device-width, initial-scale=1">
+#     <style>
+#         body {
+#             font-family: Arial, sans-serif;
+#             padding: 20px;
+#         }
+#         .container {
+#             max-width: 400px;
+#             margin: auto;
+#             background-color: #fff;
+#             padding: 30px;
+#             border-radius: 8px;
+#             box-shadow: 0 0 10px rgba(0,0,0,0.1);
+#         }
+#         label {
+#             display: block;
+#             margin-top: 15px;
+#             font-weight: bold;
+#         }
+#         input {
+#             width: 100%;
+#             padding: 12px;
+#             margin-top: 5px;
+#             box-sizing: border-box;
+#         }
+#         button {
+#             margin-top: 20px;
+#             width: 100%;
+#             padding: 12px;
+#             background-color: #28a745;
+#             color: white;
+#             font-size: 18px;
+#             border: none;
+#             cursor: pointer;
+#         }
+#         button:hover {
+#             background-color: #218838;
+#         }
+#         .error {
+#             color: red;
+#             margin-top: 10px;
+#         }
+#     </style>
+# </head>
+# <body>
+# <div class="container">
+#     <h2>Create New User</h2>
+#     <form method="POST">
+#         <label for="username">Username:</label>
+#         <input id="username" name="username" required>
 
-        <label for="password">Password:</label>
-        <input id="password" name="password" type="password" required>
+#         <label for="password">Password:</label>
+#         <input id="password" name="password" type="password" required>
 
-        <label for="role">Role:</label>
-        <select id="role" name="role" required>
-            <option value="admin">Admin</option>
-            <option value="user">User</option>
-        </select>
+#         <label for="role">Role:</label>
+#         <select id="role" name="role" required>
+#             <option value="admin">Admin</option>
+#             <option value="user">User</option>
+#         </select>
 
-        <button type="submit">Create User</button>
-    </form>
-    {% if error %}
-    <div class="error">{{ error }}</div>
-    {% endif %}
-</div>
-</body>
-</html>
-'''
+#         <button type="submit">Create User</button>
+#     </form>
+#     {% if error %}
+#     <div class="error">{{ error }}</div>
+#     {% endif %}
+# </div>
+# </body>
+# </html>
+# '''
 
 
 HTML_FORM = '''
@@ -207,6 +207,11 @@ HTML_FORM = '''
             font-size: 22px;
             padding: 10px;
         }
+        {% if session.get('role') == 'admin' %}
+        <form method="POST" action="/clear_db" onsubmit="return confirm('Are you sure you want to clear all records?');" style="margin-bottom: 20px;">
+            <button type="submit" style="background-color: #d9534f;">⚠️ Clear All Records (Admin Only)</button>
+        </form>
+        {% endif %}
     </style>
 
     <script>
@@ -440,14 +445,16 @@ def login():
     if request.method == 'POST':
         username = request.form['username']
         password = request.form['password']
-        
-        if username in USERS and USERS[username] == password:
+        user = USERS.get(username)
+        if user and user['password'] == password:
             session['logged_in'] = True
-            session['username'] = username  # store username for role-based logic if needed
+            session['username'] = username
+            session['role'] = user['role']   # store role in session
             return redirect(url_for('log_fuel'))
         else:
             error = "Invalid username or password"
     return render_template_string(LOGIN_FORM, error=error)
+
 
 
 
@@ -481,34 +488,36 @@ def log_fuel():
     return render_template_string(HTML_FORM)
 
 
-@app.route('/create-user', methods=['GET', 'POST'])
-def create_user():
-    if session.get('role') != 'admin':
-        return "❌ Access Denied", 403
+# @app.route('/create-user', methods=['GET', 'POST'])
+# def create_user():
+#     if session.get('role') != 'admin':
+#         return "❌ Access Denied", 403
 
-    message = None
-    if request.method == 'POST':
-        username = request.form['username']
-        password = request.form['password']
-        role = request.form['role']
-        if User.query.filter_by(username=username).first():
-            message = "❌ User already exists"
-        else:
-            new_user = User(username=username, role=role)
-            new_user.set_password(password)
-            db.session.add(new_user)
-            db.session.commit()
-            message = "✅ User created successfully!"
-    return render_template_string(CREATE_USER_FORM, message=message)
+#     message = None
+#     if request.method == 'POST':
+#         username = request.form['username']
+#         password = request.form['password']
+#         role = request.form['role']
+#         if User.query.filter_by(username=username).first():
+#             message = "❌ User already exists"
+#         else:
+#             new_user = User(username=username, role=role)
+#             new_user.set_password(password)
+#             db.session.add(new_user)
+#             db.session.commit()
+#             message = "✅ User created successfully!"
+#     return render_template_string(CREATE_USER_FORM, message=message)
 
 
-@app.route('/clear-db')
+@app.route('/clear_db', methods=['POST'])
 def clear_db():
-    if session.get('role') != 'admin':
-        return "❌ Access Denied", 403
+    if not session.get('logged_in') or session.get('role') != 'admin':
+        return "Unauthorized", 403
+
+    # Delete all rows from FuelLog table
     FuelLog.query.delete()
     db.session.commit()
-    return "✅ Database cleared! <a href='/'>Back</a>"
+    return redirect(url_for('log_fuel'))
 
 
 @app.route('/download')
