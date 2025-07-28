@@ -12,7 +12,7 @@ from openpyxl import Workbook
 
 app = Flask(__name__)
 app.secret_key = '9f3e8c2b5d7a4f9cbb8e1d0a3f7c6e4520d93f4a1b6c7e8d9f1a2b3c4d5e6f7a'
-app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://fuel_log_user:n2hpkr7iVc9wV8c1C5s8VEJCUByKRn2Z@dpg-d1sugn6r433s73eotcbg-a/fuel_log'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://neondb_owner:npg_EDkMvy5q7PcV@ep-delicate-art-a2qhgk2m-pooler.eu-central-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 
@@ -471,3 +471,4 @@ with app.app_context():
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)
+    
