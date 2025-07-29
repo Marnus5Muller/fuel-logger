@@ -149,7 +149,7 @@ HTML_FORM = '''
     <h2>⛽ Fuel Log Entry</h2>
     <form method="POST" enctype="multipart/form-data">
         <!-- Site Dropdown -->
-        <label for="site">Select Site:</label>
+        <label for="site">Select Organisation:</label>
         <select id="site" name="site" onchange="toggleVehicleField()" required>
             <option value="">--Select Site--</option>
             <option value="Holfontein" {% if site == 'Holfontein' %}selected{% endif %}>Holfontein</option>
@@ -472,5 +472,5 @@ with app.app_context():
         db.session.commit()
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, debug=False)
+    app.run()
     
