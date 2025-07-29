@@ -17,8 +17,8 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 
 USERS = {
-    "NEX ADMIN":{"password": "Admin@test1234", "role": "admin"},
-    "NEX Holfontein": {"password":"NEX@test149", "role": "user"}
+    "NEX ADMIN":{"password": "Admin@379", "role": "admin"},
+    "Holfontein Diesel": {"password":"Diesel@149", "role": "user"}
 }
 
 ### DATABASE MODELS ###
@@ -153,6 +153,7 @@ HTML_FORM = '''
             <option value="">--Select Site--</option>
             <option value="Holfontein" {% if site == 'Holfontein' %}selected{% endif %}>Holfontein</option>
             <option value="Plank" {% if site == 'Plank' %}selected{% endif %}>Plank</option>
+            <option value="Abantu" {% if site == 'Abantu' %}selected{% endif %}>Abantu</option>
         </select>
 
         <!-- Holfontein Vehicle Dropdown -->
@@ -197,13 +198,12 @@ HTML_FORM = '''
                 vehicleSelect.setAttribute("required", "true");
                 vehicleText.removeAttribute("required");
 
-            } else if (site === "Plank") {
+            } else if (site === "Plank" || site === "Abantu") {
                 vehicleDropdown.style.display = "none";
                 vehicleInput.style.display = "block";
 
                 vehicleText.setAttribute("required", "true");
                 vehicleSelect.removeAttribute("required");
-
             } else {
                 vehicleDropdown.style.display = "none";
                 vehicleInput.style.display = "none";
@@ -386,7 +386,7 @@ def log_fuel():
 
         if site == "Holfontein":
             vehicle = request.form.get('vehicle_select')
-        elif site == "Plank":
+        elif site in ["Plank", "Abantu"]:
             vehicle = request.form.get('vehicle_text')
         else:
             error = "❌ Invalid site selected."
@@ -470,5 +470,5 @@ with app.app_context():
         db.session.commit()
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    app.run(host='0.0.0.0', port=5000, debug=False)
     
