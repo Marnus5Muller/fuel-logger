@@ -9,6 +9,7 @@ from zoneinfo import ZoneInfo
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
 from openpyxl import Workbook
+from datetime import datetime
 
 app = Flask(__name__)
 app.secret_key = '9f3e8c2b5d7a4f9cbb8e1d0a3f7c6e4520d93f4a1b6c7e8d9f1a2b3c4d5e6f7a'
@@ -455,7 +456,8 @@ def download():
     for e in entries:
         ws.append([e.timestamp.strftime('%Y-%m-%d %H:%M:%S'), e.site, e.vehicle, e.driver_name,
                    e.odometer, e.start_reading, e.end_reading, e.pumped])
-    file_path = "fuel_log.xlsx"
+    today = datetime.today().strftime("%Y-%m-%d")
+    file_path = f"Holfontein Diesel {today}.xlsx"
     wb.save(file_path)
     return send_file(file_path, as_attachment=True)
 
@@ -470,5 +472,5 @@ with app.app_context():
         db.session.commit()
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, debug=False)
+    app.run(debug=False)
     
