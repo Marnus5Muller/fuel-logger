@@ -155,6 +155,7 @@ HTML_FORM = '''
             <option value="Holfontein" {% if site == 'Holfontein' %}selected{% endif %}>Holfontein</option>
             <option value="Plank" {% if site == 'Plank' %}selected{% endif %}>Plank</option>
             <option value="Abantu" {% if site == 'Abantu' %}selected{% endif %}>Abantu</option>
+            <option value="Edwin Carriers" {% if site == 'Edwin Carriers' %}selected{% endif %}>Edwin Carriers</option>
         </select>
 
         <!-- Holfontein Vehicle Dropdown -->
@@ -165,11 +166,11 @@ HTML_FORM = '''
                 <option {% if vehicle_select == 'Geni 1' %}selected{% endif %}>Geni 1</option>
                 <option {% if vehicle_select == 'Geni 2' %}selected{% endif %}>Geni 2</option>
                 <option {% if vehicle_select == 'Geni3 Hopper' %}selected{% endif %}>Geni3 Hopper</option>
-                <option {% if vehicle_select == 'Landini 1' %}selected{% endif %}>Landini 1</option>
-                <option {% if vehicle_select == 'Landini 2' %}selected{% endif %}>Landini 2</option>
-                <option {% if vehicle_select == 'Landini 3' %}selected{% endif %}>Landini 3</option>
-                <option {% if vehicle_select == 'Landini 4' %}selected{% endif %}>Landini 4</option>
-                <option {% if vehicle_select == 'Landini 5' %}selected{% endif %}>Landini 5</option>
+                <option value="Landini KY63 NP GP" {% if vehicle_select == 'Landini KY63 NP GP' %}selected{% endif %}>Landini KY63 NP GP</option>
+                <option value="Landini KY63 PR GP" {% if vehicle_select == 'Landini KY63 PR GP' %}selected{% endif %}>Landini KY63 PR GP</option>
+                <option value="Landini KY63 LK GP" {% if vehicle_select == 'Landini KY63 LK GP' %}selected{% endif %}>Landini KY63 LK GP</option>
+                <option value="Landini KY63 MR GP" {% if vehicle_select == 'Landini KY63 MR GP' %}selected{% endif %}>Landini KY63 MR GP</option>
+                <option value="Landini Hire" {% if vehicle_select == 'Landini Hire' %}selected{% endif %}>Landini Hire</option>
                 <option {% if vehicle_select == 'Mahindra Bakkie' %}selected{% endif %}>Mahindra Bakkie</option>
                 <option {% if vehicle_select == 'MF DHS856FS' %}selected{% endif %}>MF DHS856FS</option>
                 <option {% if vehicle_select == 'MF DHS872FS' %}selected{% endif %}>MF DHS872FS</option>
@@ -199,12 +200,13 @@ HTML_FORM = '''
                 vehicleSelect.setAttribute("required", "true");
                 vehicleText.removeAttribute("required");
 
-            } else if (site === "Plank" || site === "Abantu") {
+            } else if (["Plank", "Abantu", "Edwin Carriers"].includes(site)) {
                 vehicleDropdown.style.display = "none";
                 vehicleInput.style.display = "block";
 
                 vehicleText.setAttribute("required", "true");
                 vehicleSelect.removeAttribute("required");
+
             } else {
                 vehicleDropdown.style.display = "none";
                 vehicleInput.style.display = "none";
@@ -387,17 +389,17 @@ def log_fuel():
 
         if site == "Holfontein":
             vehicle = request.form.get('vehicle_select')
-        elif site in ["Plank", "Abantu"]:
+        elif site in ["Plank", "Abantu", "Edwin Carriers"]:
             vehicle = request.form.get('vehicle_text')
         else:
             error = "❌ Invalid site selected."
             return render_template_string(HTML_FORM, error=error)
 
         driver_name = request.form.get('driver_name')
-        odometer = float(request.form.get('odometer', 0))
-        start = float(request.form.get('start', 0))
-        pumped = float(request.form.get('pumped', 0))
-        end = start + pumped
+        odometer = round(float(request.form.get('odometer', 0)), 1)
+        start = round(float(request.form.get('start', 0)), 1)
+        pumped = round(float(request.form.get('pumped', 0)), 1)
+        end = round(start + pumped, 1)
 
         # ✅ Validate against last entry
         last_entry = FuelLog.query.order_by(FuelLog.timestamp.desc()).first()
@@ -454,8 +456,16 @@ def download():
     ws.title = "Fuel Log"
     ws.append(['Timestamp', 'Site', 'Vehicle', 'Driver Name', 'Odometer', 'Start', 'End', 'Pumped'])
     for e in entries:
-        ws.append([e.timestamp.strftime('%Y-%m-%d %H:%M:%S'), e.site, e.vehicle, e.driver_name,
-                   e.odometer, e.start_reading, e.end_reading, e.pumped])
+        ws.append([
+            e.timestamp.strftime('%Y-%m-%d %H:%M:%S'),
+            e.site,
+            e.vehicle,
+            e.driver_name,
+            round(e.odometer, 1),
+            round(e.start_reading, 1),
+            round(e.end_reading, 1),
+            round(e.pumped, 1)
+        ])
     today = datetime.today().strftime("%Y-%m-%d")
     file_path = f"Holfontein Diesel {today}.xlsx"
     wb.save(file_path)
