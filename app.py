@@ -236,13 +236,22 @@ HTML_FORM = '''
         <input id="driver_name" name="driver_name" type="text" value="{{ driver_name | default('') }}" required>
 
         <label for="odometer">Vehicle Odometer:</label>
-        <input id="odometer" name="odometer" type="number" step="0.1" min="1" value="{{ odometer | default('') }}" required>
+        <input id="odometer" name="odometer" type="number" step="0.1" min="1" 
+            value="{{ odometer | default('') }}" required>
+        {% if error_odometer %}
+        <div style="color:red; font-size:18px; font-weight:bold; margin-top:5px;">
+            {{ error_odometer }}
+        </div>
+        {% endif %}
 
 
         <label for="start">Pump Start Reading:</label>
-        <input id="start" name="start" type="number" step="0.1" min="1" value="{{ start | default('') }}" required oninput="calculateEnd()">
-        {% if error %}
-        <div style="color:red; font-size:18px; font-weight:bold; margin-top:5px;">{{ error }}</div>
+        <input id="start" name="start" type="number" step="0.1" min="1" 
+            value="{{ start | default('') }}" required oninput="calculateEnd()">
+        {% if error_start %}
+        <div style="color:red; font-size:18px; font-weight:bold; margin-top:5px;">
+            {{ error_start }}
+        </div>
         {% endif %}
 
 
@@ -422,11 +431,11 @@ def log_fuel():
                 .first()
             )
             if last_vehicle_entry and odometer <= last_vehicle_entry.odometer:
-                error = (f"❌ Odometer reading ({odometer}) must be greater than "
+                error_odometer = (f"❌ Odometer reading ({odometer}) must be greater than "
                          f"last reading ({last_vehicle_entry.odometer}) for this vehicle.")
                 return render_template_string(
                     HTML_FORM,
-                    error=error,
+                    error=error_odometer,
                     site=site,
                     vehicle_select=vehicle,
                     driver_name=driver_name,
@@ -440,10 +449,10 @@ def log_fuel():
         if last_entry:
             expected_start = round(last_entry.end_reading, 2)
             if round(start, 2) != expected_start:
-                error = f"❌ Start Reading ({start}) does NOT match previous End Reading ({expected_start}). Please use {expected_start}."
+                error_start = f"❌ Start Reading ({start}) does NOT match previous End Reading ({expected_start}). Please use {expected_start}."
                 return render_template_string(
                     HTML_FORM,
-                    error=error,
+                    error=error_start,
                     site=site,
                     vehicle_select=vehicle if site == "Holfontein" else "",
                     driver_name=driver_name,
