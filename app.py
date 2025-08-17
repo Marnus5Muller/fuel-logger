@@ -401,7 +401,9 @@ def log_fuel():
     if not session.get('logged_in'):
         return redirect(url_for('login'))
 
-    error = None
+    # Separate errors
+    error_odometer = None
+    error_start = None
     success = None
 
     if request.method == 'POST':
@@ -413,8 +415,8 @@ def log_fuel():
         elif site in ["Plank", "Abantu", "Edwin Carriers"]:
             vehicle = request.form.get('vehicle_text')
         else:
-            error = "❌ Invalid site selected."
-            return render_template_string(HTML_FORM, error=error)
+            error_start = "❌ Invalid site selected."
+            return render_template_string(HTML_FORM, error_start=error_start)
 
         driver_name = request.form.get('driver_name')
         odometer = round(float(request.form.get('odometer', 0)), 1)
@@ -431,11 +433,14 @@ def log_fuel():
                 .first()
             )
             if last_vehicle_entry and odometer <= last_vehicle_entry.odometer:
-                error_odometer = (f"❌ Odometer reading ({odometer}) must be greater than "
-                         f"last reading ({last_vehicle_entry.odometer}) for this vehicle.")
+                error_odometer = (
+                    f"❌ Odometer reading ({odometer}) must be greater than "
+                    f"last reading ({last_vehicle_entry.odometer}) for this vehicle."
+                )
                 return render_template_string(
                     HTML_FORM,
-                    error=error_odometer,
+                    error_odometer=error_odometer,
+                    error_start=None,
                     site=site,
                     vehicle_select=vehicle,
                     driver_name=driver_name,
@@ -449,10 +454,14 @@ def log_fuel():
         if last_entry:
             expected_start = round(last_entry.end_reading, 2)
             if round(start, 2) != expected_start:
-                error_start = f"❌ Start Reading ({start}) does NOT match previous End Reading ({expected_start}). Please use {expected_start}."
+                error_start = (
+                    f"❌ Start Reading ({start}) does NOT match previous End Reading "
+                    f"({expected_start}). Please use {expected_start}."
+                )
                 return render_template_string(
                     HTML_FORM,
-                    error=error_start,
+                    error_odometer=None,
+                    error_start=error_start,
                     site=site,
                     vehicle_select=vehicle if site == "Holfontein" else "",
                     driver_name=driver_name,
@@ -464,11 +473,18 @@ def log_fuel():
         # ✅ Insert only if validation passed
         tz = ZoneInfo("Africa/Johannesburg")
         timestamp = datetime.now(tz).replace(tzinfo=None)
-        new_entry = FuelLog(timestamp=timestamp, site=site, vehicle=vehicle,
-                            driver_name=driver_name, odometer=odometer,
-                            start_reading=start, end_reading=end, pumped=pumped)
+        new_entry = FuelLog(
+            timestamp=timestamp,
+            site=site,
+            vehicle=vehicle,
+            driver_name=driver_name,
+            odometer=odometer,
+            start_reading=start,
+            end_reading=end,
+            pumped=pumped
+        )
 
-        # 🔄 Safe DB commit with retry in case of stale connection after restart
+        # 🔄 Safe DB commit with retry
         try:
             db.session.add(new_entry)
             db.session.commit()
@@ -478,10 +494,11 @@ def log_fuel():
                 db.session.add(new_entry)
                 db.session.commit()
             except OperationalError as e:
-                error = f"⚠️ Database error: {str(e)}. Please try again."
+                error_start = f"⚠️ Database error: {str(e)}. Please try again."
                 return render_template_string(
                     HTML_FORM,
-                    error=error,
+                    error_odometer=None,
+                    error_start=error_start,
                     site=site,
                     vehicle_select=vehicle if site == "Holfontein" else "",
                     driver_name=driver_name,
@@ -492,7 +509,13 @@ def log_fuel():
 
         success = "✅ Fuel log added successfully!"
 
-    return render_template_string(HTML_FORM, error=error, success=success)
+    return render_template_string(
+        HTML_FORM,
+        error_odometer=error_odometer,
+        error_start=error_start,
+        success=success
+    )
+
 
 
 
