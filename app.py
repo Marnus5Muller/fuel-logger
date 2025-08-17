@@ -10,11 +10,22 @@ from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
 from openpyxl import Workbook
 from datetime import datetime
+from sqlalchemy.pool import QueuePool
+from sqlalchemy.exc import OperationalError
+from zoneinfo import ZoneInfo
+from datetime import datetime
 
 app = Flask(__name__)
 app.secret_key = '9f3e8c2b5d7a4f9cbb8e1d0a3f7c6e4520d93f4a1b6c7e8d9f1a2b3c4d5e6f7a'
 app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://neondb_owner:npg_EDkMvy5q7PcV@ep-delicate-art-a2qhgk2m-pooler.eu-central-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+    "poolclass": QueuePool,
+    "pool_pre_ping": True,      # Checks if connection is alive before using
+    "pool_recycle": 280,        # Recycles connections after ~5 min idle
+    "pool_timeout": 30          # Wait up to 30 sec for a free connection
+}
+
 db = SQLAlchemy(app)
 
 USERS = {
@@ -382,11 +393,12 @@ def log_fuel():
         return redirect(url_for('login'))
 
     error = None
-    success = None  # ✅ Add success flag
+    success = None
 
     if request.method == 'POST':
         site = request.form.get('site')
 
+        # Determine vehicle field based on site
         if site == "Holfontein":
             vehicle = request.form.get('vehicle_select')
         elif site in ["Plank", "Abantu", "Edwin Carriers"]:
@@ -401,7 +413,29 @@ def log_fuel():
         pumped = round(float(request.form.get('pumped', 0)), 1)
         end = round(start + pumped, 1)
 
-        # ✅ Validate against last entry
+        # 🚗 Holfontein odometer validation
+        if site == "Holfontein":
+            last_vehicle_entry = (
+                FuelLog.query
+                .filter(FuelLog.site == "Holfontein", FuelLog.vehicle == vehicle)
+                .order_by(FuelLog.timestamp.desc())
+                .first()
+            )
+            if last_vehicle_entry and odometer <= last_vehicle_entry.odometer:
+                error = (f"❌ Odometer reading ({odometer}) must be greater than "
+                         f"last reading ({last_vehicle_entry.odometer}) for this vehicle.")
+                return render_template_string(
+                    HTML_FORM,
+                    error=error,
+                    site=site,
+                    vehicle_select=vehicle,
+                    driver_name=driver_name,
+                    odometer=odometer,
+                    start=start,
+                    pumped=pumped
+                )
+
+        # 🛢 Pump start reading validation (last overall entry)
         last_entry = FuelLog.query.order_by(FuelLog.timestamp.desc()).first()
         if last_entry:
             expected_start = round(last_entry.end_reading, 2)
@@ -421,16 +455,36 @@ def log_fuel():
         # ✅ Insert only if validation passed
         tz = ZoneInfo("Africa/Johannesburg")
         timestamp = datetime.now(tz).replace(tzinfo=None)
-
         new_entry = FuelLog(timestamp=timestamp, site=site, vehicle=vehicle,
                             driver_name=driver_name, odometer=odometer,
                             start_reading=start, end_reading=end, pumped=pumped)
-        db.session.add(new_entry)
-        db.session.commit()
+
+        # 🔄 Safe DB commit with retry in case of stale connection after restart
+        try:
+            db.session.add(new_entry)
+            db.session.commit()
+        except OperationalError:
+            db.session.rollback()
+            try:
+                db.session.add(new_entry)
+                db.session.commit()
+            except OperationalError as e:
+                error = f"⚠️ Database error: {str(e)}. Please try again."
+                return render_template_string(
+                    HTML_FORM,
+                    error=error,
+                    site=site,
+                    vehicle_select=vehicle if site == "Holfontein" else "",
+                    driver_name=driver_name,
+                    odometer=odometer,
+                    start=start,
+                    pumped=pumped
+                )
 
         success = "✅ Fuel log added successfully!"
 
     return render_template_string(HTML_FORM, error=error, success=success)
+
 
 
 
