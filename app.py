@@ -57,6 +57,8 @@ class FuelLog(db.Model):
     start_reading = db.Column(db.Float, nullable=False)
     end_reading = db.Column(db.Float, nullable=False)
     pumped = db.Column(db.Float, nullable=False)
+    consumption = db.Column(db.Float, nullable=True)   # km per litre
+
 
 HTML_FORM = '''
 <!DOCTYPE html>
@@ -470,6 +472,32 @@ def log_fuel():
                     start=start,
                     pumped=pumped
                 )
+            
+        # 🛢 Pump start reading validation
+        # last_entry = FuelLog.query.order_by(FuelLog.timestamp.desc()).first()
+
+        # 🚗 Holfontein odometer validation
+        if site == "Holfontein":
+            last_vehicle_entry = (
+                FuelLog.query
+                .filter(FuelLog.site == "Holfontein", FuelLog.vehicle == vehicle)
+                .order_by(FuelLog.timestamp.desc())
+                .first()
+            )
+
+            if last_vehicle_entry and odometer <= last_vehicle_entry.odometer:
+                error_odometer = (
+                    f"❌ Odometer reading ({odometer}) must be greater than "
+                    f"last reading ({last_vehicle_entry.odometer})."
+                )
+                return (...)
+
+        # ➕ NEW: Consumption calculation
+        if site == "Holfontein" and last_vehicle_entry:
+            consumption = round((odometer - last_vehicle_entry.odometer) / pumped, 2)
+        else:
+            consumption = None
+
 
         # ✅ Insert only if validation passed
         tz = ZoneInfo("Africa/Johannesburg")
@@ -482,7 +510,8 @@ def log_fuel():
             odometer=odometer,
             start_reading=start,
             end_reading=end,
-            pumped=pumped
+            pumped=pumped,
+            consumption=consumption
         )
 
         # 🔄 Safe DB commit with retry
@@ -505,7 +534,8 @@ def log_fuel():
                     driver_name=driver_name,
                     odometer=odometer,
                     start=start,
-                    pumped=pumped
+                    pumped=pumped,
+                    consumption=consumption
                 )
 
         success = "✅ Fuel log added successfully!"
@@ -541,7 +571,7 @@ def download():
     wb = Workbook()
     ws = wb.active
     ws.title = "Fuel Log"
-    ws.append(['Timestamp', 'Site', 'Vehicle', 'Driver Name', 'Odometer', 'Start', 'End', 'Pumped'])
+    ws.append(['Timestamp', 'Site', 'Vehicle', 'Driver Name', 'Odometer', 'Start', 'End', 'Pumped', 'Consumption (km/l|h/l)'])
     for e in entries:
         ws.append([
             e.timestamp.strftime('%Y-%m-%d %H:%M:%S'),
@@ -551,8 +581,10 @@ def download():
             round(e.odometer, 1),
             round(e.start_reading, 1),
             round(e.end_reading, 1),
-            round(e.pumped, 1)
+            round(e.pumped, 1),
+            round(e.consumption, 2) if e.consumption is not None else ''
         ])
+
     today = datetime.today().strftime("%Y-%m-%d")
     file_path = f"Holfontein Diesel {today}.xlsx"
     wb.save(file_path)
