@@ -212,7 +212,7 @@ HTML_FORM = '''
                 vehicleSelect.setAttribute("required", "true");
                 vehicleText.removeAttribute("required");
 
-            } else if (["Plank", "Abantu", "Edwin Carriers"].includes(site)) {
+            } else if (["Plank", "Abantu", "Edwin Carriers","CBI"].includes(site)) {
                 vehicleDropdown.style.display = "none";
                 vehicleInput.style.display = "block";
 
@@ -413,7 +413,7 @@ def log_fuel():
         # Determine vehicle field based on site
         if site == "Holfontein":
             vehicle = request.form.get('vehicle_select')
-        elif site in ["Plank", "Abantu", "Edwin Carriers"]:
+        elif site in ["Plank", "Abantu", "Edwin Carriers","CBI"]:
             vehicle = request.form.get('vehicle_text')
         else:
             error_start = "❌ Invalid site selected."
