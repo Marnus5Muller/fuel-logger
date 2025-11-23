@@ -167,6 +167,7 @@ HTML_FORM = '''
             <option value="Plank" {% if site == 'Plank' %}selected{% endif %}>Plank</option>
             <option value="Abantu" {% if site == 'Abantu' %}selected{% endif %}>Abantu</option>
             <option value="Edwin Carriers" {% if site == 'Edwin Carriers' %}selected{% endif %}>Edwin Carriers</option>
+            <option value="CBI" {% if site == 'CBI' %}selected{% endif %}>CBI</option>
         </select>
 
         <!-- Holfontein Vehicle Dropdown -->
