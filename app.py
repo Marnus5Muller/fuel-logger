@@ -180,6 +180,7 @@ HTML_FORM = '''
                 <option {% if vehicle_select == 'Geni 1' %}selected{% endif %}>Geni 1</option>
                 <option {% if vehicle_select == 'Geni 2' %}selected{% endif %}>Geni 2</option>
                 <option {% if vehicle_select == 'Geni3 Hopper' %}selected{% endif %}>Geni3 Hopper</option>
+                <option {% if vehicle_select == 'Geni4 Color Sorter' %}selected{% endif %}>Geni4 Color Sorter</option>
                 <option value="Landini KY63 NP GP" {% if vehicle_select == 'Landini KY63 NP GP' %}selected{% endif %}>Landini KY63 NP GP</option>
                 <option value="Landini KY63 PR GP" {% if vehicle_select == 'Landini KY63 PR GP' %}selected{% endif %}>Landini KY63 PR GP</option>
                 <option value="Landini KY63 LK GP" {% if vehicle_select == 'Landini KY63 LK GP' %}selected{% endif %}>Landini KY63 LK GP</option>
