@@ -582,10 +582,10 @@ def download():
             e.site,
             e.vehicle,
             e.driver_name,
-            round(e.odometer, 1),
-            round(e.start_reading, 1),
-            round(e.end_reading, 1),
-            round(e.pumped, 1),
+            round(e.odometer, 1) if e.odometer is not None else '',
+            round(e.start_reading, 1) if e.start_reading is not None else '',
+            round(e.end_reading, 1) if e.end_reading is not None else '',
+            round(e.pumped, 1) if e.pumped is not None else '',
             round(e.consumption, 2) if e.consumption is not None else ''
         ])
 
