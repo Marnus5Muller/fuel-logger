@@ -55,10 +55,10 @@ class FuelLog(db.Model):
     site = db.Column(db.String(50), nullable=False)
     vehicle = db.Column(db.String(100), nullable=False)
     driver_name = db.Column(db.String(100), nullable=False)
-    odometer = db.Column(db.String(50), nullable=False)  # Changed to String to handle text values
+    odometer = db.Column(db.Float, nullable=False)
     start_reading = db.Column(db.Float, nullable=False)
     end_reading = db.Column(db.Float, nullable=False)
-    pumped = db.Column(db.String(50), nullable=False)     # Changed to String to handle text values
+    pumped = db.Column(db.Float, nullable=False)
     consumption = db.Column(db.Float, nullable=True)   # km per litre
 
 
@@ -439,7 +439,7 @@ def log_fuel():
                 .order_by(FuelLog.timestamp.desc())
                 .first()
             )
-            if last_vehicle_entry and odometer <= float(last_vehicle_entry.odometer):
+            if last_vehicle_entry and odometer <= last_vehicle_entry.odometer:
                 error_odometer = (
                     f"❌ Odometer reading ({odometer}) must be greater than "
                     f"last reading for this vehicle."
@@ -489,7 +489,7 @@ def log_fuel():
                 .first()
             )
 
-            if last_vehicle_entry and odometer <= float(last_vehicle_entry.odometer):
+            if last_vehicle_entry and odometer <= last_vehicle_entry.odometer:
                 error_odometer = (
                     f"❌ Odometer reading ({odometer}) must be greater than "
                     f"last reading."
@@ -498,7 +498,7 @@ def log_fuel():
 
         # ➕ NEW: Consumption calculation
         if site == "Holfontein" and last_vehicle_entry:
-            consumption = round((odometer - float(last_vehicle_entry.odometer)) / pumped, 2)
+            consumption = round((odometer - last_vehicle_entry.odometer) / pumped, 2)
         else:
             consumption = None
 
