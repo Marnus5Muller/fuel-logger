@@ -17,8 +17,8 @@ from datetime import datetime
 
 app = Flask(__name__)
 app.secret_key = '9f3e8c2b5d7a4f9cbb8e1d0a3f7c6e4520d93f4a1b6c7e8d9f1a2b3c4d5e6f7a'
-app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://neondb_owner:npg_EDkMvy5q7PcV@ep-delicate-art-a2qhgk2m-pooler.eu-central-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require'
-# app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://neondb_owner:npg_ZhAg3xEcs1dB@ep-wandering-smoke-agbn8re8-pooler.c-2.eu-central-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require'
+# app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://neondb_owner:npg_EDkMvy5q7PcV@ep-delicate-art-a2qhgk2m-pooler.eu-central-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://neondb_owner:npg_ZhAg3xEcs1dB@ep-wandering-smoke-agbn8re8-pooler.c-2.eu-central-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require'
 
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
@@ -442,7 +442,7 @@ def log_fuel():
             if last_vehicle_entry and odometer <= last_vehicle_entry.odometer:
                 error_odometer = (
                     f"❌ Odometer reading ({odometer}) must be greater than "
-                    f"last reading ({last_vehicle_entry.odometer}) for this vehicle."
+                    f"last reading for this vehicle."
                 )
                 return render_template_string(
                     HTML_FORM,
@@ -463,7 +463,7 @@ def log_fuel():
             if round(start, 2) != expected_start:
                 error_start = (
                     f"❌ Start Reading ({start}) does NOT match previous End Reading "
-                    f"({expected_start}). Please use {expected_start}."
+                    
                 )
                 return render_template_string(
                     HTML_FORM,
@@ -492,7 +492,7 @@ def log_fuel():
             if last_vehicle_entry and odometer <= last_vehicle_entry.odometer:
                 error_odometer = (
                     f"❌ Odometer reading ({odometer}) must be greater than "
-                    f"last reading ({last_vehicle_entry.odometer})."
+                    f"last reading."
                 )
                 return (...)
 
