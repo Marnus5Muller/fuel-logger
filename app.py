@@ -21,7 +21,7 @@ app.secret_key = '9f3e8c2b5d7a4f9cbb8e1d0a3f7c6e4520d93f4a1b6c7e8d9f1a2b3c4d5e6f
 #TEST DB app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://neondb_owner:npg_ZhAg3xEcs1dB@ep-wandering-smoke-agbn8re8-pooler.c-2.eu-central-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require'
 
 #NEW DB
-app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL='postgresql://neondb_owner:npg_80gqkCraoidL@ep-broad-firefly-agl3su7m-pooler.c-2.eu-central-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require'
+app.config['SQLALCHEMY_DATABASE_URI'] ='postgresql://neondb_owner:npg_80gqkCraoidL@ep-broad-firefly-agl3su7m-pooler.c-2.eu-central-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require'
 
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
@@ -192,6 +192,7 @@ HTML_FORM = '''
                 <option value="Landini KY63 MR GP" {% if vehicle_select == 'Landini KY63 MR GP' %}selected{% endif %}>Landini KY63 MR GP</option>
                 <option value="Landini Hire" {% if vehicle_select == 'Landini Hire' %}selected{% endif %}>Landini Hire</option>
                 <option {% if vehicle_select == 'Mahindra Bakkie' %}selected{% endif %}>Mahindra Bakkie</option>
+                <option {% if vehicle_select == 'Bakkie HYX367FS - Willie' %}selected{% endif %}>Bakkie HYX367FS - Willie</option>
                 <option {% if vehicle_select == 'MF DHS856FS' %}selected{% endif %}>MF DHS856FS</option>
                 <option {% if vehicle_select == 'MF DHS872FS' %}selected{% endif %}>MF DHS872FS</option>
                 <option {% if vehicle_select == 'MF DHS879FS' %}selected{% endif %}>MF DHS879FS</option>
