@@ -175,6 +175,7 @@ HTML_FORM = '''
             <option value="Abantu" {% if site == 'Abantu' %}selected{% endif %}>Abantu</option>
             <option value="Edwin Carriers" {% if site == 'Edwin Carriers' %}selected{% endif %}>Edwin Carriers</option>
             <option value="CBI" {% if site == 'CBI' %}selected{% endif %}>CBI</option>
+            <option value="Pitout" {% if site == 'Pitout' %}selected{% endif %}>Pitout</option>
         </select>
 
         <!-- Holfontein Vehicle Dropdown -->
@@ -222,7 +223,7 @@ HTML_FORM = '''
                 vehicleSelect.setAttribute("required", "true");
                 vehicleText.removeAttribute("required");
 
-            } else if (["Plank", "Abantu", "Edwin Carriers","CBI"].includes(site)) {
+            } else if (["Plank", "Abantu", "Edwin Carriers","CBI","Pitout"].includes(site)) {
                 vehicleDropdown.style.display = "none";
                 vehicleInput.style.display = "block";
 
@@ -423,7 +424,7 @@ def log_fuel():
         # Determine vehicle field based on site
         if site == "Holfontein":
             vehicle = request.form.get('vehicle_select')
-        elif site in ["Plank", "Abantu", "Edwin Carriers","CBI"]:
+        elif site in ["Plank", "Abantu", "Edwin Carriers","CBI","Pitout"]:
             vehicle = request.form.get('vehicle_text')
         else:
             error_start = "❌ Invalid site selected."
