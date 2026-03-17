@@ -199,6 +199,7 @@ HTML_FORM = '''
                 <option {% if vehicle_select == 'MF DHS879FS' %}selected{% endif %}>MF DHS879FS</option>
                 <option {% if vehicle_select == 'MF DHS885FS' %}selected{% endif %}>MF DHS885FS</option>
                 <option {% if vehicle_select == 'Forklift F1' %}selected{% endif %}>Forklift F1</option>
+                <option {% if vehicle_select == 'LS95WRGP-New Holland Wessel' %}selected{% endif %}>LS95WRGP-New Holland Wessel</option>
             </select>
         </div>
 
